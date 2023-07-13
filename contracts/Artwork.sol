@@ -2,29 +2,49 @@
 pragma solidity ^0.8.9;
 
 contract Artwork {
+    // Artwork struct
     struct Art {
         address owner;
-        string image; //path
+        string image;
         string description;
         uint256 price;
         string credentials;
         uint256 quantity;
+        bool isVerified;
+        string tokenUri;
     }
 
+    // Purchase struct
     struct Purchase {
         uint256 id;
         uint256 artId;
         address buyer;
         address seller;
         uint256 amount;
-        bool delivery_state;
+        string image;
+        string description;
+        uint256 price;
+        string credentials;
+        string delivery_state;
+    }
+
+    // Auction struct
+    struct AuctionArt {
+        address owner;
+        string image;
+        string description;
+        uint256 bid;
+        string credentials;
+        uint256 deadline;
     }
 
     uint256 art_count;
     uint256 purchase_count;
+    uint256 auction_art_count;
 
     mapping(uint256 => Art) public artworks;
     mapping(uint256 => Purchase) public purchases;
+    mapping(uint256 => AuctionArt) public auction_arts;
 
     // Create Artwork
     function createArt(
@@ -42,7 +62,53 @@ contract Artwork {
         art.price = _price;
         art.credentials = _credentials;
         art.quantity = _quantity;
+        art.isVerified = false;
+        art.tokenUri = "";
         art_count++;
+    }
+
+    // Create Auction Artwork
+    function createAuctionArt(
+        address _owner,
+        string memory _image_path,
+        string memory _description,
+        uint256 _bid,
+        string memory _credentials,
+        uint256 _deadline
+    ) public {
+        AuctionArt storage auction_art = auction_arts[auction_art_count];
+        auction_art.owner = _owner;
+        auction_art.image = _image_path;
+        auction_art.description = _description;
+        auction_art.bid = _bid;
+        auction_art.credentials = _credentials;
+        auction_art.deadline = _deadline;
+        auction_art_count++;
+    }
+
+    // Update Bid
+    function updateBid(
+        uint256 auction_art_id,
+        uint256 _new_bid
+    ) public returns (uint256) {
+        AuctionArt storage auction_art = auction_arts[auction_art_id];
+        auction_art.bid = _new_bid;
+        return auction_art.bid;
+    }
+
+    // Get All Auction Artworks
+    function getAuctionArtworks() public view returns (AuctionArt[] memory) {
+        AuctionArt[] memory allAuctionArtworks = new AuctionArt[](
+            auction_art_count
+        );
+
+        for (uint i = 0; i < auction_art_count; i++) {
+            AuctionArt storage item = auction_arts[i];
+
+            allAuctionArtworks[i] = item;
+        }
+
+        return allAuctionArtworks;
     }
 
     // Update Product Quantity
@@ -55,10 +121,19 @@ contract Artwork {
         return art.quantity;
     }
 
-    // Complete delivery
-    function startDelivery(uint256 purchase_id) public returns (bool) {
+    // Start delivery
+    function startDelivery(uint256 purchase_id) public returns (string memory) {
         Purchase storage purchase = purchases[purchase_id];
-        purchase.delivery_state = true;
+        purchase.delivery_state = "Dispatched";
+        return purchase.delivery_state;
+    }
+
+    // Complete delivery
+    function completeDelivery(
+        uint256 purchase_id
+    ) public returns (string memory) {
+        Purchase storage purchase = purchases[purchase_id];
+        purchase.delivery_state = "Delivered";
         return purchase.delivery_state;
     }
 
@@ -72,6 +147,15 @@ contract Artwork {
     function getArtQuantity(uint256 art_id) public view returns (uint256) {
         Art storage art = artworks[art_id];
         return art.quantity;
+    }
+
+    // Not needed
+    function issueCertificate(uint256 art_id) public returns (bool) {
+        Art storage art = artworks[art_id];
+        art.isVerified = true;
+        art
+            .tokenUri = "https://bafybeiej6epn6i2up5bfmjiil7h5glpeapnclgees5zb6hsokdmyjy2s7y.ipfs.dweb.link/artwork%20%281%29.json";
+        return art.isVerified;
     }
 
     // To be continued...
@@ -123,7 +207,11 @@ contract Artwork {
         purchase.buyer = msg.sender;
         purchase.seller = art.owner;
         purchase.amount = amount;
-        purchase.delivery_state = false;
+        purchase.delivery_state = "in warehouse";
+        purchase.image = art.image;
+        purchase.description = art.description;
+        purchase.credentials = art.credentials;
+        purchase.price = art.price;
         purchase_count++;
         emit ArtworkPurchased(art_id, msg.sender, art.owner, amount);
     }
