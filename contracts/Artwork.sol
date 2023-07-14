@@ -12,6 +12,7 @@ contract Artwork {
         uint256 quantity;
         bool isVerified;
         string tokenUri;
+        address original_artist;
     }
 
     // Purchase struct
@@ -21,30 +22,19 @@ contract Artwork {
         address buyer;
         address seller;
         uint256 amount;
-        string image;
-        string description;
-        uint256 price;
-        string credentials;
+        uint256 total_amount;
+        uint256 amounts_paid;
+        uint256 amounts_remaining;
         string delivery_state;
-    }
+        bool delivered_status;
 
-    // Auction struct
-    struct AuctionArt {
-        address owner;
-        string image;
-        string description;
-        uint256 bid;
-        string credentials;
-        uint256 deadline;
     }
-
+    
     uint256 art_count;
     uint256 purchase_count;
-    uint256 auction_art_count;
 
     mapping(uint256 => Art) public artworks;
     mapping(uint256 => Purchase) public purchases;
-    mapping(uint256 => AuctionArt) public auction_arts;
 
     // Create Artwork
     function createArt(
@@ -64,53 +54,10 @@ contract Artwork {
         art.quantity = _quantity;
         art.isVerified = false;
         art.tokenUri = "";
+        art.original_artist = _owner;
         art_count++;
     }
-
-    // Create Auction Artwork
-    function createAuctionArt(
-        address _owner,
-        string memory _image_path,
-        string memory _description,
-        uint256 _bid,
-        string memory _credentials,
-        uint256 _deadline
-    ) public {
-        AuctionArt storage auction_art = auction_arts[auction_art_count];
-        auction_art.owner = _owner;
-        auction_art.image = _image_path;
-        auction_art.description = _description;
-        auction_art.bid = _bid;
-        auction_art.credentials = _credentials;
-        auction_art.deadline = _deadline;
-        auction_art_count++;
-    }
-
-    // Update Bid
-    function updateBid(
-        uint256 auction_art_id,
-        uint256 _new_bid
-    ) public returns (uint256) {
-        AuctionArt storage auction_art = auction_arts[auction_art_id];
-        auction_art.bid = _new_bid;
-        return auction_art.bid;
-    }
-
-    // Get All Auction Artworks
-    function getAuctionArtworks() public view returns (AuctionArt[] memory) {
-        AuctionArt[] memory allAuctionArtworks = new AuctionArt[](
-            auction_art_count
-        );
-
-        for (uint i = 0; i < auction_art_count; i++) {
-            AuctionArt storage item = auction_arts[i];
-
-            allAuctionArtworks[i] = item;
-        }
-
-        return allAuctionArtworks;
-    }
-
+    
     // Update Product Quantity
     function updateQuantity(
         uint256 art_id,
@@ -138,12 +85,6 @@ contract Artwork {
     }
 
     // To be continued...
-    // function getDeliveryStatus(uint256 art_id) public view returns (bool) {
-    //     Art storage art = artworks[art_id];
-    //     return art.delivery_state;
-    // }
-
-    // To be continued...
     function getArtQuantity(uint256 art_id) public view returns (uint256) {
         Art storage art = artworks[art_id];
         return art.quantity;
@@ -157,14 +98,7 @@ contract Artwork {
             .tokenUri = "https://bafybeiej6epn6i2up5bfmjiil7h5glpeapnclgees5zb6hsokdmyjy2s7y.ipfs.dweb.link/artwork%20%281%29.json";
         return art.isVerified;
     }
-
-    // To be continued...
-    // function cancelDelivery(uint256 art_id) public returns (bool) {
-    //     Art storage art = artworks[art_id];
-    //     art.delivery_state = false;
-    //     return art.delivery_state;
-    // }
-
+    
     // Get All Artworks
     function getArtworks() public view returns (Art[] memory) {
         Art[] memory allArtworks = new Art[](art_count);
@@ -192,7 +126,7 @@ contract Artwork {
 
         require(art.quantity > 0, "Artwork is out of stock");
 
-        uint256 amount = art.price;
+        uint256 amount = (10 * art.price)/100;
 
         require(msg.value == amount, "Incorrect payment amount");
 
@@ -207,14 +141,33 @@ contract Artwork {
         purchase.buyer = msg.sender;
         purchase.seller = art.owner;
         purchase.amount = amount;
+        purchase.total_amount = art.price;
+        purchase.amounts_paid = amount;
+        purchase.amounts_remaining = art.price - amount;
         purchase.delivery_state = "in warehouse";
-        purchase.image = art.image;
-        purchase.description = art.description;
-        purchase.credentials = art.credentials;
-        purchase.price = art.price;
+        purchase.delivered_status = false;
         purchase_count++;
         emit ArtworkPurchased(art_id, msg.sender, art.owner, amount);
     }
+
+    function goodsDelivered(uint256 _purchase_id) public payable{
+        Purchase storage purchase = purchases[_purchase_id];
+        purchase.delivered_status = true;
+
+        Art storage art = artworks[purchase.artId];
+
+        uint256 amount = purchase.amounts_remaining;
+
+        require(msg.value == amount, "Incorrect payment amount");
+
+        (bool sent, ) = payable(art.owner).call{value: amount}("");
+        require(sent, "Payment failed");
+        emit ArtworkPurchased(purchase.artId, msg.sender, art.owner, amount);
+        art.owner = msg.sender;
+
+        purchase.amounts_paid += amount;
+        purchase.amounts_remaining -= amount;
+    } 
 
     // Get All Purchases
     function getPurchases() public view returns (Purchase[] memory) {
