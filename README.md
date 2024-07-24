@@ -1,5 +1,3 @@
-## To use it:
- 1. pull the code
- 2. run 'npm i'
- 3. create .env file in root directory and store PRIVATE_KEY
- 4. run 'npx thirdweb@latest deploy'
+# ArtBay Smart Contracts
+
+ArtBay is a decentralized marketplace where you can buy, sell, and verify artworks as NFTs (Non-Fungible Tokens) using the Ethereum blockchain. This repository contains the smart contracts that power the ArtBay platform.
